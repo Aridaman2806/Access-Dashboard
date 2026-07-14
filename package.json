@@ -1,0 +1,19 @@
+{
+  "name": "mcp-access-management",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @mcp-access/core && npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "verify:e2e": "tsx scripts/simulate-agent-platform.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

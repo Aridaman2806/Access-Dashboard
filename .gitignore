@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+*.db
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+data/
+scripts/.e2e-data/
+.env
+.env.local
+*.log
