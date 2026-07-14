@@ -77,4 +77,48 @@ export function registerTools(server: McpServer): void {
     },
     async ({ email }: { email: string }) => textResult({ email, remainingDays: 12.5, year: 2026 }),
   );
+
+  server.registerTool(
+    "incident_report",
+    {
+      title: "Incident Report",
+      description: "Get the (fake) status of an incident.",
+      inputSchema: { incidentId: z.string().min(1) },
+    },
+    async ({ incidentId }: { incidentId: string }) =>
+      textResult({ incidentId, severity: "P2", status: "resolved", summary: `Incident ${incidentId} mitigated; postmortem pending.` }),
+  );
+
+  server.registerTool(
+    "invoice_lookup",
+    {
+      title: "Invoice Lookup",
+      description: "Look up a (fake) invoice by ID.",
+      inputSchema: { invoiceId: z.string().min(1) },
+    },
+    async ({ invoiceId }: { invoiceId: string }) =>
+      textResult({ invoiceId, amountUsd: 4820.0, status: "paid", dueDate: "2026-06-30" }),
+  );
+
+  server.registerTool(
+    "org_chart",
+    {
+      title: "Org Chart",
+      description: "Look up (fake) reporting-line info by email.",
+      inputSchema: { email: z.string().email() },
+    },
+    async ({ email }: { email: string }) =>
+      textResult({ email, manager: "Priya Nandakumar", directReports: 3, team: "Platform" }),
+  );
+
+  server.registerTool(
+    "ticket_status",
+    {
+      title: "Ticket Status",
+      description: "Get the (fake) status of a support ticket.",
+      inputSchema: { ticketId: z.string().min(1) },
+    },
+    async ({ ticketId }: { ticketId: string }) =>
+      textResult({ ticketId, status: "in_progress", assignee: "support-queue-2", updatedAt: new Date().toISOString() }),
+  );
 }

@@ -4,8 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "apps/*"
+    "core",
+    "gateway",
+    "mock-mcp-server",
+    "admin-portal/*",
+    "mock-agent-builder/*"
   ],
   "scripts": {
     "build": "npm run build -w @mcp-access/core && npm run build --workspaces --if-present",

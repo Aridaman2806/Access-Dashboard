@@ -2,7 +2,7 @@
  * End-to-end proof that the gateway actually enforces access, without
  * touching the org's real MCP server or agent builder platform. Spins up the
  * bundled mock upstream + the gateway pointed at it, seeds a handful of
- * grants directly via packages/core, then plays the role of the agent
+ * grants directly via core, then plays the role of the agent
  * builder platform: connects to the gateway's MCP endpoint with simulated
  * SSO identity headers and asserts each access scenario end-to-end.
  *
@@ -147,11 +147,11 @@ async function main() {
   }
 
   log("Starting mock upstream MCP server...");
-  spawnService("mock", path.join(ROOT, "apps", "mock-mcp-server"), { PORT: String(MOCK_PORT) });
+  spawnService("mock", path.join(ROOT, "mock-mcp-server"), { PORT: String(MOCK_PORT) });
   await waitForHealth(`http://localhost:${MOCK_PORT}/health`);
 
   log("Starting gateway (enforce mode)...");
-  spawnService("gateway", path.join(ROOT, "packages", "gateway"), {
+  spawnService("gateway", path.join(ROOT, "gateway"), {
     PORT: String(GATEWAY_PORT),
     DB_PATH,
     GATEWAY_SHARED_SECRET: SHARED_SECRET,
