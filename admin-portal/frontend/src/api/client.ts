@@ -37,6 +37,18 @@ export interface Tool {
   departmentTags: string[];
 }
 
+export interface DepartmentTagSummary {
+  tag: string;
+  toolCount: number;
+}
+
+export interface ToolTagsResponse {
+  tags: DepartmentTagSummary[];
+  untaggedCount: number;
+}
+
+export const UNTAGGED_KEY = "__untagged__";
+
 export interface User {
   email: string;
   name: string;

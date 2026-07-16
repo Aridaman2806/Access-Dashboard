@@ -30,6 +30,10 @@ export function listUsers(db: Db): User[] {
   return all<User>(db, `SELECT * FROM users ORDER BY name`);
 }
 
+export function countUsers(db: Db): number {
+  return get<{ count: number }>(db, `SELECT COUNT(*) AS count FROM users`)!.count;
+}
+
 export function findUsersByDepartments(db: Db, departments: string[]): User[] {
   if (departments.length === 0) return [];
   const placeholders = departments.map(() => "?").join(",");

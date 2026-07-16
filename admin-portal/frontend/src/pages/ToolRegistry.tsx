@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, type Tool } from "../api/client.js";
-import { Badge, Button, Card, Input } from "../components/ui.js";
+import { api, UNTAGGED_KEY, type Tool, type ToolTagsResponse } from "../api/client.js";
+import { Badge, Button, Card, Input, TagTiles, type TagTileItem } from "../components/ui.js";
 
 function TagEditor({ tool, onSaved }: { tool: Tool; onSaved: (tool: Tool) => void }) {
   const [value, setValue] = useState(tool.departmentTags.join(", "));
@@ -32,37 +32,70 @@ function TagEditor({ tool, onSaved }: { tool: Tool; onSaved: (tool: Tool) => voi
 
 export function ToolRegistry() {
   const [tools, setTools] = useState<Tool[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [tagsSummary, setTagsSummary] = useState<ToolTagsResponse | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
-  function load() {
+  function loadTags() {
+    api.get<ToolTagsResponse>("/tools/tags").then(setTagsSummary);
+  }
+
+  function loadTools() {
     setLoading(true);
+    const query = selectedTag ? `?tag=${encodeURIComponent(selectedTag)}` : "";
     api
-      .get<Tool[]>("/tools")
+      .get<Tool[]>(`/tools${query}`)
       .then(setTools)
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(() => {
+    loadTags();
+    api.get<Tool[]>("/tools").then((all) => setTotalCount(all.length));
+  }, []);
+
+  useEffect(loadTools, [selectedTag]);
 
   async function sync() {
     setSyncing(true);
     try {
       await api.post<Tool[]>("/tools/sync");
-      load();
+      loadTags();
+      loadTools();
+      api.get<Tool[]>("/tools").then((all) => setTotalCount(all.length));
     } finally {
       setSyncing(false);
     }
   }
 
+  function handleTagSaved(updated: Tool) {
+    setTools((prev) => prev.map((t) => (t.name === updated.name ? updated : t)));
+    loadTags();
+  }
+
+  const tiles: TagTileItem[] =
+    tagsSummary?.tags.map((t) => ({ key: t.tag, label: t.tag, count: t.toolCount })) ?? [];
+  if (tagsSummary && tagsSummary.untaggedCount > 0) {
+    tiles.push({ key: UNTAGGED_KEY, label: "Untagged", count: tagsSummary.untaggedCount });
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Tool Registry</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Tool Registry</h1>
+          <p className="text-sm text-neutral-500">Tag tools with the departments allowed to use them by default.</p>
+        </div>
         <Button onClick={() => void sync()} disabled={syncing}>
           {syncing ? "Syncing…" : "Sync from upstream"}
         </Button>
       </div>
+
+      <Card title="Browse by tag">
+        <TagTiles tiles={tiles} selected={selectedTag} onSelect={setSelectedTag} allLabel="All tools" allCount={totalCount} />
+      </Card>
 
       <Card>
         {loading ? (
@@ -89,17 +122,16 @@ export function ToolRegistry() {
                         <Badge tone="red">untagged</Badge>
                       )}
                     </div>
-                    <TagEditor
-                      tool={tool}
-                      onSaved={(updated) => setTools((prev) => prev.map((t) => (t.name === updated.name ? updated : t)))}
-                    />
+                    <TagEditor tool={tool} onSaved={handleTagSaved} />
                   </td>
                 </tr>
               ))}
               {tools.length === 0 && (
                 <tr>
                   <td colSpan={3} className="py-6 text-center text-neutral-500">
-                    No tools yet — click "Sync from upstream" to pull the tool list from the real MCP server.
+                    {selectedTag
+                      ? "No tools under this tag."
+                      : 'No tools yet — click "Sync from upstream" to pull the tool list from the real MCP server.'}
                   </td>
                 </tr>
               )}

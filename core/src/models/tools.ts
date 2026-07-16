@@ -57,3 +57,32 @@ export function setToolDepartmentTags(db: Db, toolName: string, tags: string[]):
     }
   });
 }
+
+/** Every distinct department tag currently in use, with how many tools carry it. */
+export function listDistinctDepartmentTags(db: Db): { tag: string; toolCount: number }[] {
+  return all<{ tag: string; toolCount: number }>(
+    db,
+    `SELECT department_tag AS tag, COUNT(DISTINCT tool_name) AS toolCount
+     FROM tool_department_tags
+     GROUP BY department_tag
+     ORDER BY department_tag`,
+  );
+}
+
+export function getToolsByDepartmentTag(db: Db, tag: string): Tool[] {
+  return all<Tool>(
+    db,
+    `SELECT tools.* FROM tools
+     JOIN tool_department_tags ON tool_department_tags.tool_name = tools.name
+     WHERE tool_department_tags.department_tag = ?
+     ORDER BY tools.name`,
+    [tag],
+  );
+}
+
+export function getUntaggedTools(db: Db): Tool[] {
+  return all<Tool>(
+    db,
+    `SELECT * FROM tools WHERE name NOT IN (SELECT tool_name FROM tool_department_tags) ORDER BY name`,
+  );
+}

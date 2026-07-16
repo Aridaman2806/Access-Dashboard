@@ -1,10 +1,14 @@
 import { Router } from "express";
-import { listActiveIndividualGrantsForUser, searchUsers, upsertUser, type Db } from "@mcp-access/core";
+import { countUsers, listActiveIndividualGrantsForUser, searchUsers, upsertUser, type Db } from "@mcp-access/core";
 import { getUserAccessView } from "../services/accessViews.js";
 
 export function createUsersRouter(deps: { db: Db }): Router {
   const router = Router();
   const { db } = deps;
+
+  router.get("/count", (_req, res) => {
+    res.json({ count: countUsers(db) });
+  });
 
   router.get("/", (req, res) => {
     res.json(searchUsers(db, String(req.query.q ?? "")));

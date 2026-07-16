@@ -26,7 +26,7 @@ export function UserView() {
   }, [selected]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="mx-auto flex max-w-6xl flex-col gap-4">
       <h1 className="text-xl font-semibold">User View</h1>
       <p className="text-sm text-neutral-500">Search a user to see their department, project memberships, and every tool they can access.</p>
 

@@ -17,8 +17,11 @@ export function Dashboard() {
   if (!data) return <p>Loading…</p>;
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Dashboard</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+      <div>
+        <h1 className="text-xl font-semibold">Dashboard</h1>
+        <p className="text-sm text-neutral-500">What the gateway is currently connected to, and what it exposes.</p>
+      </div>
 
       <Card title="Upstream MCP server">
         <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">

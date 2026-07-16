@@ -30,7 +30,7 @@ export function ProjectView() {
   }, [selected]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="mx-auto flex max-w-6xl flex-col gap-4">
       <h1 className="text-xl font-semibold">Project View</h1>
       <p className="text-sm text-neutral-500">Search a project to see its members and the tools granted to it.</p>
 

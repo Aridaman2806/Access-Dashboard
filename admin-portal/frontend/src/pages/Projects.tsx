@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Grant, type Project, type Tool } from "../api/client.js";
-import { Badge, Button, Card, Input } from "../components/ui.js";
+import { Badge, Button, Card, Input, MultiSelect } from "../components/ui.js";
 
 interface ProjectAccessView {
   project: Project;
@@ -86,8 +86,11 @@ export function Projects() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Projects</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+      <div>
+        <h1 className="text-xl font-semibold">Projects</h1>
+        <p className="text-sm text-neutral-500">Group users by project code and grant tools to everyone in the group at once.</p>
+      </div>
 
       <Card title="Create a project">
         <div className="flex items-end gap-2">
@@ -162,19 +165,8 @@ export function Projects() {
                 {detail.toolGrants.length === 0 && <li className="text-sm text-neutral-500">No tools granted yet.</li>}
               </ul>
               <div className="flex items-end gap-2">
-                <select
-                  multiple
-                  value={bulkTools}
-                  onChange={(e) => setBulkTools(Array.from(e.target.selectedOptions, (o) => o.value))}
-                  className="h-24 min-w-56 rounded border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-                >
-                  {tools.map((t) => (
-                    <option key={t.name} value={t.name}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                <Button variant="secondary" onClick={() => void bulkGrant()}>
+                <MultiSelect options={tools.map((t) => t.name)} selected={bulkTools} onChange={setBulkTools} />
+                <Button variant="secondary" onClick={() => void bulkGrant()} disabled={bulkTools.length === 0}>
                   Grant selected tools to all members
                 </Button>
               </div>

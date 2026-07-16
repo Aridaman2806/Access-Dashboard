@@ -10,8 +10,11 @@ export function AuditLog() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Audit Log</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+      <div>
+        <h1 className="text-xl font-semibold">Audit Log</h1>
+        <p className="text-sm text-neutral-500">Every grant, revoke, and tagging action taken in this portal.</p>
+      </div>
       <Card>
         <table className="w-full text-left text-sm">
           <thead className="text-neutral-500">

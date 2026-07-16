@@ -2,6 +2,9 @@ import { Router } from "express";
 import {
   getTool,
   getToolDepartmentTags,
+  getToolsByDepartmentTag,
+  getUntaggedTools,
+  listDistinctDepartmentTags,
   listTools,
   recordAudit,
   searchTools,
@@ -13,6 +16,9 @@ import {
 } from "@mcp-access/core";
 import { getToolAccessView } from "../services/accessViews.js";
 
+/** Sentinel value for the "Untagged" tile — not a real department tag. */
+const UNTAGGED = "__untagged__";
+
 export function createToolsRouter(deps: { db: Db; upstreamClient: UpstreamClient }): Router {
   const router = Router();
   const { db, upstreamClient } = deps;
@@ -22,8 +28,24 @@ export function createToolsRouter(deps: { db: Db; upstreamClient: UpstreamClient
     return { ...tool, departmentTags: getToolDepartmentTags(db, tool.name) };
   }
 
+  router.get("/tags", (_req, res) => {
+    const tags = listDistinctDepartmentTags(db);
+    const untaggedCount = getUntaggedTools(db).length;
+    res.json({ tags, untaggedCount });
+  });
+
   router.get("/", (req, res) => {
-    const tools = req.query.q ? searchTools(db, String(req.query.q)) : listTools(db);
+    const tag = req.query.tag ? String(req.query.tag) : undefined;
+    let tools;
+    if (tag === UNTAGGED) {
+      tools = getUntaggedTools(db);
+    } else if (tag) {
+      tools = getToolsByDepartmentTag(db, tag);
+    } else if (req.query.q) {
+      tools = searchTools(db, String(req.query.q));
+    } else {
+      tools = listTools(db);
+    }
     res.json(tools.map((t) => withTags(t)));
   });
 
