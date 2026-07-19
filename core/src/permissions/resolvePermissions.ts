@@ -30,8 +30,14 @@ export async function resolveEffectivePermission(
   const membershipProvider = deps.membershipProvider ?? createDbProjectMembershipProvider(db);
 
   if (user.department) {
+    // Case/whitespace-insensitive: department strings come from a live SSO
+    // directory sync (e.g. Azure AD), whose casing isn't under our control,
+    // but are compared against tags an admin typed by hand into the Tool
+    // Registry. Normalize both sides at comparison time only — nothing
+    // stored or displayed changes.
     const requiredTags = getToolDepartmentTags(db, toolName);
-    if (requiredTags.includes(user.department)) {
+    const normalizedUserDept = user.department.trim().toLowerCase();
+    if (requiredTags.some((tag) => tag.trim().toLowerCase() === normalizedUserDept)) {
       return { allowed: true, reason: "department" };
     }
   }

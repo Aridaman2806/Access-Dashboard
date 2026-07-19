@@ -34,8 +34,17 @@ export function countUsers(db: Db): number {
   return get<{ count: number }>(db, `SELECT COUNT(*) AS count FROM users`)!.count;
 }
 
+/**
+ * Case/whitespace-insensitive on purpose: department strings arrive from a
+ * live SSO directory sync (casing outside our control) but are compared
+ * against admin-typed tags, so normalize both sides at query time.
+ */
 export function findUsersByDepartments(db: Db, departments: string[]): User[] {
   if (departments.length === 0) return [];
-  const placeholders = departments.map(() => "?").join(",");
-  return all<User>(db, `SELECT * FROM users WHERE department IN (${placeholders}) ORDER BY name`, departments);
+  const placeholders = departments.map(() => "LOWER(TRIM(?))").join(",");
+  return all<User>(
+    db,
+    `SELECT * FROM users WHERE LOWER(TRIM(department)) IN (${placeholders}) ORDER BY name`,
+    departments,
+  );
 }

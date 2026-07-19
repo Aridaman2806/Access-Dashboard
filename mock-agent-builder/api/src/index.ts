@@ -5,6 +5,18 @@ import { env } from "./env.js";
 import { createAuthRouter, requireAuth } from "./auth.js";
 import { createToolsRouter } from "./routes/tools.js";
 
+if (process.env.NODE_ENV === "production") {
+  // This app exists purely to demo the gateway locally -- it has hardcoded
+  // test accounts with their passwords shown right on the login page. The
+  // real agent builder platform (a separate system, doing real Azure AD SSO)
+  // is what should be pointed at the gateway in production, never this.
+  console.error(
+    "mock-agent-builder-api is a local testing tool and must not run in production -- " +
+      "point the real agent builder platform at the gateway instead.",
+  );
+  process.exit(1);
+}
+
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());

@@ -16,3 +16,4 @@ export * from "./permissions/resolvePermissions.js";
 
 export * from "./mcp/upstreamConfig.js";
 export * from "./mcp/upstreamClient.js";
+export * from "./mcp/toolTags.js";

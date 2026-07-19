@@ -24,3 +24,15 @@ export function listAccessLog(db: Db, params: { limit?: number; offset?: number 
     [limit, offset],
   );
 }
+
+/**
+ * Deletes decision rows older than the retention window and returns how many
+ * were removed. tools/list records one row per tool per request, so at org
+ * scale (dozens of tools, real traffic) this table grows unboundedly without
+ * a periodic sweep — the gateway runs this on startup and daily.
+ */
+export function purgeAccessLogOlderThan(db: Db, retentionDays: number): number {
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+  const result = run(db, `DELETE FROM gateway_access_log WHERE created_at < ?`, [cutoff]);
+  return Number(result.changes ?? 0);
+}

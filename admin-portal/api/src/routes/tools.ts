@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  extractTagsFromUpstreamTool,
   getTool,
   getToolDepartmentTags,
   getToolsByDepartmentTag,
@@ -70,6 +71,20 @@ export function createToolsRouter(deps: { db: Db; upstreamClient: UpstreamClient
   router.post("/sync", async (req, res) => {
     const upstreamTools = await upstreamClient.listTools();
     const synced = upstreamTools.map((t) => upsertTool(db, { name: t.name, description: t.description ?? null }));
+
+    // Best-effort auto-tagging from upstream metadata (see core/src/mcp/toolTags.ts).
+    // Only applied to tools with zero tags today, so a manual admin
+    // correction always wins and re-running sync is never destructive.
+    const autoTagged: { tool: string; tags: string[] }[] = [];
+    for (const upstreamTool of upstreamTools) {
+      if (getToolDepartmentTags(db, upstreamTool.name).length > 0) continue;
+      const detected = extractTagsFromUpstreamTool(upstreamTool);
+      if (detected.length > 0) {
+        setToolDepartmentTags(db, upstreamTool.name, detected);
+        autoTagged.push({ tool: upstreamTool.name, tags: detected });
+      }
+    }
+
     recordAudit(db, {
       actorEmail: req.session.adminEmail!,
       action: "tools.sync",
@@ -77,6 +92,16 @@ export function createToolsRouter(deps: { db: Db; upstreamClient: UpstreamClient
       targetId: "*",
       details: { count: synced.length, names: synced.map((t) => t.name) },
     });
+    if (autoTagged.length > 0) {
+      recordAudit(db, {
+        actorEmail: req.session.adminEmail!,
+        action: "tool.tags.auto_detected",
+        targetType: "tool",
+        targetId: "*",
+        details: { autoTagged },
+      });
+    }
+
     res.json(synced.map((t) => withTags(t)));
   });
 

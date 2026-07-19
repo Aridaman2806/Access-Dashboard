@@ -9,6 +9,20 @@ export interface UpstreamToolSummary {
   title?: string;
   description?: string;
   inputSchema?: unknown;
+  annotations?: Record<string, unknown>;
+  /**
+   * The MCP spec's blessed extension point for vendor-specific tool metadata.
+   * Important: the SDK validates every tools/list response against its own
+   * zod schema (`ToolSchema` in @modelcontextprotocol/sdk/types.js), which
+   * only recognizes the standard fields (name/title/description/inputSchema/
+   * outputSchema/annotations/execution/_meta) and SILENTLY STRIPS anything
+   * else — a nonstandard top-level `tags` field, or a custom key stuffed
+   * into `annotations`, never survives client-side parsing. `_meta` is the
+   * one field typed as an open dictionary (`z.record(...)`), so it's the
+   * only place custom data like a tool's department tag can actually reach
+   * this code through the official SDK client.
+   */
+  _meta?: Record<string, unknown>;
 }
 
 export interface UpstreamClient {
@@ -97,6 +111,8 @@ export function createUpstreamClient(config: UpstreamConfig): UpstreamClient {
         title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
+        annotations: tool.annotations,
+        _meta: tool._meta,
       }));
     },
 

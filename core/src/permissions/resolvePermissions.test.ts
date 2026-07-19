@@ -90,6 +90,17 @@ test("project grant allows access for members, not for non-members", async () =>
   assert.equal(afterRevoke.allowed, false);
 });
 
+test("department match is case- and whitespace-insensitive (real SSO data may not match admin-typed tags exactly)", async () => {
+  const db = freshDb();
+  upsertUser(db, { email: "sso@x.com", name: "SSO User", department: "Engineering " });
+  upsertTool(db, { name: "deploy_status" });
+  setToolDepartmentTags(db, "deploy_status", ["engineering"]);
+
+  const result = await resolveEffectivePermission({ db }, { email: "sso@x.com", department: "Engineering " }, "deploy_status");
+  assert.equal(result.allowed, true);
+  assert.equal(result.reason, "department");
+});
+
 test("a tool can require any one of multiple department tags", async () => {
   const db = freshDb();
   upsertTool(db, { name: "shared_tool" });

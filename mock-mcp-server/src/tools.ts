@@ -63,6 +63,10 @@ export function registerTools(server: McpServer): void {
       title: "Employee Lookup",
       description: "Look up (fake) employee directory info by email.",
       inputSchema: { email: z.string().email() },
+      // Demonstrates admin-portal's best-effort tag auto-detection on sync
+      // (core/src/mcp/toolTags.ts) -- `_meta` is the MCP spec's one open
+      // extension field that survives the SDK client's response validation.
+      _meta: { tags: ["hc"] },
     },
     async ({ email }: { email: string }) =>
       textResult({ email, name: "Jordan Rivera", title: "Senior Analyst", department: "hr" }),
