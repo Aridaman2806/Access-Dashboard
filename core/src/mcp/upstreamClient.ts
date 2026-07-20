@@ -1,8 +1,28 @@
+import { z } from "zod";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { UpstreamConfig } from "./upstreamConfig.js";
+
+/**
+ * Deliberately permissive: validates only the pagination envelope, not each
+ * tool's shape. The SDK's own `client.listTools()` validates the *entire*
+ * tools array against its strict per-tool schema in one shot — if even one
+ * real-world tool doesn't conform exactly (e.g. an inputSchema whose root
+ * isn't literally `{ type: "object" }`), the whole call throws and returns
+ * ZERO tools, even though the other 40+ are perfectly fine. Every caller of
+ * this module (the gateway included) would then see no tools at all for
+ * every user. Fetching the raw envelope and validating tools one at a time
+ * below means one malformed tool is skipped (logged), not fatal.
+ */
+const RawListToolsResultSchema = z
+  .object({
+    tools: z.array(z.unknown()),
+    nextCursor: z.string().optional(),
+  })
+  .passthrough();
 
 export interface UpstreamToolSummary {
   name: string;
@@ -11,18 +31,21 @@ export interface UpstreamToolSummary {
   inputSchema?: unknown;
   annotations?: Record<string, unknown>;
   /**
-   * The MCP spec's blessed extension point for vendor-specific tool metadata.
-   * Important: the SDK validates every tools/list response against its own
-   * zod schema (`ToolSchema` in @modelcontextprotocol/sdk/types.js), which
-   * only recognizes the standard fields (name/title/description/inputSchema/
-   * outputSchema/annotations/execution/_meta) and SILENTLY STRIPS anything
-   * else — a nonstandard top-level `tags` field, or a custom key stuffed
-   * into `annotations`, never survives client-side parsing. `_meta` is the
-   * one field typed as an open dictionary (`z.record(...)`), so it's the
-   * only place custom data like a tool's department tag can actually reach
-   * this code through the official SDK client.
+   * The MCP spec's blessed extension point for vendor-specific tool metadata
+   * (the one field the SDK's `ToolSchema` types as an open dictionary).
    */
   _meta?: Record<string, unknown>;
+  /**
+   * The complete, unvalidated tool object exactly as the upstream server
+   * sent it — including any nonstandard top-level fields the SDK's own
+   * `ToolSchema` doesn't recognize and would otherwise silently strip (e.g.
+   * a custom `tags` field sitting next to `name`/`description`, which is
+   * how at least one real org MCP server emits its department tag; see
+   * `extractTagsFromUpstreamTool` in toolTags.ts). Available because
+   * `listTools()` below validates each tool individually against a raw,
+   * permissive envelope rather than the SDK's own strict whole-array parse.
+   */
+  raw: Record<string, unknown>;
 }
 
 export interface UpstreamClient {
@@ -105,15 +128,39 @@ export function createUpstreamClient(config: UpstreamConfig): UpstreamClient {
 
     async listTools() {
       const client = await getClient();
-      const { tools } = await client.listTools();
-      return tools.map((tool) => ({
-        name: tool.name,
-        title: tool.title,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        annotations: tool.annotations,
-        _meta: tool._meta,
-      }));
+      const allTools: UpstreamToolSummary[] = [];
+      let cursor: string | undefined;
+
+      do {
+        const raw = await client.request(
+          { method: "tools/list", params: cursor ? { cursor } : {} },
+          RawListToolsResultSchema,
+        );
+
+        for (const rawTool of raw.tools) {
+          const parsed = ToolSchema.safeParse(rawTool);
+          if (!parsed.success) {
+            const name = (rawTool as { name?: unknown })?.name;
+            const label = typeof name === "string" ? `"${name}"` : "<unnamed>";
+            const issues = parsed.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`).join("; ");
+            console.warn(`Skipping upstream tool ${label}: does not match the MCP tool schema — ${issues}`);
+            continue;
+          }
+          allTools.push({
+            name: parsed.data.name,
+            title: parsed.data.title,
+            description: parsed.data.description,
+            inputSchema: parsed.data.inputSchema,
+            annotations: parsed.data.annotations,
+            _meta: parsed.data._meta,
+            raw: rawTool as Record<string, unknown>,
+          });
+        }
+
+        cursor = raw.nextCursor;
+      } while (cursor);
+
+      return allTools;
     },
 
     async callTool(name: string, args: Record<string, unknown> = {}) {

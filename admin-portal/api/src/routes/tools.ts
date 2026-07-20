@@ -16,6 +16,7 @@ import {
   type UpstreamClient,
 } from "@mcp-access/core";
 import { getToolAccessView } from "../services/accessViews.js";
+import { env } from "../env.js";
 
 /** Sentinel value for the "Untagged" tile — not a real department tag. */
 const UNTAGGED = "__untagged__";
@@ -69,7 +70,25 @@ export function createToolsRouter(deps: { db: Db; upstreamClient: UpstreamClient
   });
 
   router.post("/sync", async (req, res) => {
-    const upstreamTools = await upstreamClient.listTools();
+    let upstreamTools;
+    try {
+      upstreamTools = await upstreamClient.listTools();
+    } catch (error) {
+      // The upstream MCP server being unreachable/erroring is an expected,
+      // recoverable failure (network blip, server restart, bad config) --
+      // NOT something that should ever crash this process. Express 4 does
+      // not auto-catch async route rejections, so without this try/catch a
+      // single failed sync takes down the entire admin portal for everyone
+      // until it's manually restarted.
+      console.error("Tool sync failed to reach upstream MCP server:", error);
+      res.status(502).json({
+        error: `Could not reach the upstream MCP server (${env.upstream.serverUrl}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      });
+      return;
+    }
+
     const synced = upstreamTools.map((t) => upsertTool(db, { name: t.name, description: t.description ?? null }));
 
     // Best-effort auto-tagging from upstream metadata (see core/src/mcp/toolTags.ts).

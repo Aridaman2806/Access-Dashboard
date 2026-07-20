@@ -58,6 +58,8 @@ Then edit these values so the services agree with each other:
 
 `DB_PATH` in `gateway/.env` and `admin-portal/api/.env` already point at a shared `data/` folder at the repo root by default — leave that alone unless you have a reason to change it, but if you do, **both files must point at the exact same file**, or grants made in the admin portal won't be visible to the gateway.
 
+Everything else in the `.env.example` files (rate limits, log retention, `ADMIN_FRONTEND_ORIGIN`) has a sane default for local development — you only need to touch those when actually deploying, see **Production mode** below.
+
 ## 3. Run it (six terminals)
 
 ```bash
@@ -124,6 +126,26 @@ UPSTREAM_MCP_SERVER_URL=http://<host>:<port>/mcp
 Recommend starting with `GATEWAY_ENFORCE_MODE=shadow` when pointing at a new server for the first time — it logs
 every allow/deny decision without blocking anything, so you can verify tool tagging is correct against real traffic
 before switching to `enforce`.
+
+## Production mode
+
+Setting `NODE_ENV=production` (in `gateway/.env` and `admin-portal/api/.env`) turns on hardening that's deliberately
+**off** by default so local dev stays frictionless:
+
+- **`gateway`** refuses to start unless `GATEWAY_ENFORCE_MODE` is explicitly `enforce` or `shadow` — a blank or
+  typo'd value is fail-open (silently disables all enforcement), so production won't guess. It also hard-exits if
+  `GATEWAY_SHARED_SECRET` is missing/still the placeholder, instead of just warning.
+- **`admin-portal/api`** hard-exits if `SESSION_SECRET`/`ADMIN_PASSWORD` are missing/placeholders, marks the session
+  cookie `secure` (HTTPS-only), and locks CORS down to exactly `ADMIN_FRONTEND_ORIGIN` instead of accepting any
+  origin.
+- Both services run behind `trust proxy` — put a real TLS-terminating reverse proxy in front of them if you deploy
+  this for real; neither service terminates TLS itself.
+- Admin sessions are stored in the shared SQLite db (not in memory), so they survive a restart — no need to
+  re-provision anything for this, it's on by default in both modes.
+- `gateway_access_log` is swept daily (`ACCESS_LOG_RETENTION_DAYS`, default 90) so it doesn't grow unbounded.
+
+`mock-agent-builder` refuses to start at all when `NODE_ENV=production` — it's a local testing stand-in with
+hardcoded, visible test-account passwords and must never run in a real deployment.
 
 ## Setting this up on another PC
 

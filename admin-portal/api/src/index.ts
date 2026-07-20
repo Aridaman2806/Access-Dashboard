@@ -71,6 +71,29 @@ app.use("/projects", createProjectGrantsRouter({ db }));
 app.use("/audit-log", createAuditLogRouter({ db }));
 app.use("/dashboard", createDashboardRouter({ db, upstreamClient }));
 
+// Safety net: Express 4 does not auto-catch rejections thrown by an async
+// route handler, so an unhandled one becomes an uncaught exception that
+// crashes the whole process (Node terminates on unhandled rejections by
+// default) -- a single bad request taking down every admin, org-wide, until
+// someone manually restarts it. Every route that can fail should already
+// have its own try/catch (see routes/tools.ts's /sync), but this backstops
+// anything missed, current or future, with a clean 500 instead of a crash.
+// Must be registered last and take exactly 4 params for Express to treat it
+// as an error handler.
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("Unhandled error in admin-api request:", err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+process.on("unhandledRejection", (reason) => {
+  // Final backstop beyond Express's own request lifecycle (e.g. a rejection
+  // in a detached background operation). Log and keep running rather than
+  // let Node's default behavior terminate the process.
+  console.error("Unhandled promise rejection in admin-api:", reason);
+});
+
 app.listen(env.port, () => {
   console.log(`admin-api listening on http://localhost:${env.port}`);
 });
